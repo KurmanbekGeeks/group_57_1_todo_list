@@ -8,16 +8,20 @@ def main(page: ft.Page):
 
     task_list = ft.Column(spacing=10)
 
+    filter_type = "all"
+
     def load_task():
         task_list.controls.clear()
-        for task_id, task_text in main_db.get_tasks():
+        for task_id, task_text, completed in main_db.get_tasks():
             # print(task_id, task_text)
-            task_list.controls.append(create_task_row(task_id, task_text))
+            task_list.controls.append(create_task_row(task_id, task_text, completed))
 
         page.update()
 
-    def create_task_row(task_id, task_text):
+    def create_task_row(task_id, task_text, completed):
         task_field = ft.TextField(value=task_text, read_only=True, expand=True)
+
+        task_checkbox = ft.Checkbox(value=bool(completed), on_change=lambda e: toggle_task(task_id, e.control.value)) 
 
         def enable_edit(_):
             task_field.read_only = False
@@ -32,7 +36,7 @@ def main(page: ft.Page):
         save_button = ft.IconButton(icon=ft.Icons.SAVE_ALT_ROUNDED, tooltip="Сохранить", on_click=save_task, icon_color=ft.Colors.GREEN)
 
         return ft.Row(
-            [task_field, enable_button, save_button], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+            [task_checkbox, task_field, enable_button, save_button], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
         )
     
 
@@ -41,7 +45,7 @@ def main(page: ft.Page):
             task = task_input.value
             task_id = main_db.add_task(task)
             task_list.controls.append(
-                create_task_row(task_id=task_id, task_text=task)
+                create_task_row(task_id=task_id, task_text=task, completed=None)
             )
             task_input.value = ""
             page.update()
@@ -51,8 +55,23 @@ def main(page: ft.Page):
     task_input = ft.TextField(label='Введите задачу', read_only=False, expand=True, on_submit=add_task)
     add_button = ft.ElevatedButton("ADD", on_click=add_task)
 
+    def set_filter(filter_value):
+        nonlocal filter_type
+        filter_type = filter_value
+        load_task()
+
+    def toggle_task(task_id, is_completed):
+        main_db.update_task(task_id, completed=int(is_completed))
+        load_task()
+
+    filter_buttons = ft.Row(controls=[
+        ft.ElevatedButton("Все", on_click=lambda e: set_filter('all')),
+        ft.ElevatedButton("Выполненные", on_click=lambda e: set_filter("completed")),
+        ft.ElevatedButton("Невыполненные", on_click=lambda e: set_filter("uncompleted"))
+    ], alignment=ft.MainAxisAlignment.SPACE_EVENLY)
+
     # page.add(task_input, add_button)
-    page.add(ft.Row([task_input, add_button], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), task_list)
+    page.add(ft.Row([task_input, add_button], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), filter_buttons, task_list)
 
     load_task()
 
